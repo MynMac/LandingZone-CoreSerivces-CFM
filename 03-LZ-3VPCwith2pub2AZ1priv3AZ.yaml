@@ -1,0 +1,497 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description:
+    This template will create 3 VPC's.  2 of which will have public Subnets spanning across 2 Public AZ's and
+    1 VPC with 3 subnets spanning 3 Private AZ's.
+
+Parameters:
+
+# CIDR Ranges
+
+    VPC1CIDR:
+      Type: String
+    VPC1Name:
+      Type: String
+    VPC1PUBSUBCIDR1:
+      Type: String
+    VPC1PUBSUBName1:
+      Type: String
+    VPC1PUBSUBCIDR2:
+      Type: String
+    VPC1PUBSUBName2:
+      Type: String
+ 
+    VPC2CIDR:
+      Type: String
+    VPC2Name:
+      Type: String
+    VPC2PUBSUBCIDR1:
+      Type: String
+    VPC2PUBSUBName1:
+      Type: String
+    VPC2PUBSUBCIDR2:
+      Type: String
+    VPC2PUBSUBName2:
+      Type: String
+    
+    VPC3CIDR:
+      Type: String
+    VPC3Name:
+      Type: String
+    VPC3PRVSUBCIDR1:
+      Type: String
+    VPC3PRVSUBName1:
+      Type: String
+    VPC3PRVSUBCIDR2:
+      Type: String
+    VPC3PRVSUBName2:
+      Type: String
+    VPC3PRVSUBCIDR3:
+      Type: String
+    VPC3PRVSUBName3:
+      Type: String
+
+# Virtual Gateway ID
+
+    VGWName:
+      Type: String
+
+# Internet Gateway IDs
+    
+    VPC1IGWName:
+      Type: String
+
+    VPC2IGWName:
+      Type: String
+
+# Route Tables Names
+
+    VPC1PublicRTName:
+      Type: String
+
+    VPC2PublicRTName:
+      Type: String
+
+    VPC3PrivateRTName:
+      Type: String
+
+
+Resources:
+
+####################
+### Creating VPC's ###
+####################
+
+    VPC1:
+        Type: AWS::EC2::VPC
+        Properties:
+            CidrBlock: !Ref VPC1CIDR
+            EnableDnsSupport: 'true'
+            EnableDnsHostnames: 'true'
+            InstanceTenancy: default
+            Tags:
+                - Key: Name
+                  Value: !Ref VPC1Name
+                - Key: Project
+                  Value: !Ref TAGProject
+                - Key: Role
+                  Value: !Ref TAGRole
+                - Key: Product
+                  Value: General Infra
+                - Key: Type
+                  Value: Compute
+
+    VPC2:
+        Type: AWS::EC2::VPC
+        Properties:
+            CidrBlock: !Ref VPC2CIDR
+            EnableDnsSupport: 'true'
+            EnableDnsHostnames: 'true'
+            InstanceTenancy: default
+            Tags:
+                - Key: Name
+                  Value: !Ref VPC2Name
+                - Key: Project
+                  Value: !Ref TAGProject
+                - Key: Role
+                  Value: !Ref TAGRole
+                - Key: Product
+                  Value: General Infra
+                - Key: Type
+                  Value: Compute
+
+    VPC3:
+        Type: AWS::EC2::VPC
+        Properties:
+            CidrBlock: !Ref VPC3CIDR
+            EnableDnsSupport: 'true'
+            EnableDnsHostnames: 'true'
+            InstanceTenancy: default
+            Tags:
+                - Key: Name
+                  Value: !Ref VPC3Name
+                - Key: Project
+                  Value: !Ref TAGProject
+                - Key: Role
+                  Value: !Ref TAGRole
+                - Key: Product
+                  Value: General Infra
+                - Key: Type
+                  Value: Compute
+
+##############################
+### Internet Gateway ###
+##############################
+
+# Internet Gateway
+
+    IGW1:
+        Type: AWS::EC2::InternetGateway
+        Properties:
+            Tags:
+                - Key: Name
+                  Value: !Ref VPC1IGWName
+                - Key: Project
+                  Value: !Ref TAGProject
+                - Key: Role
+                  Value: !Ref TAGRole
+                - Key: Product
+                  Value: General Infra
+                - Key: Type
+                  Value: Networking
+
+    IGWAttachment1:
+        Type: AWS::EC2::VPCGatewayAttachment
+        Properties:
+            InternetGatewayId: !Ref IGW1
+            VpcId: !Ref VPC1
+
+    IGW2:
+        Type: AWS::EC2::InternetGateway
+        Properties:
+            Tags:
+                - Key: Name
+                  Value: !Ref VPC2IGWName
+                - Key: Project
+                  Value: !Ref TAGProject
+                - Key: Role
+                  Value: !Ref TAGRole
+                - Key: Product
+                  Value: General Infra
+                - Key: Type
+                  Value: Networking
+
+    IGWAttachment2:
+        Type: AWS::EC2::VPCGatewayAttachment
+        Properties:
+            InternetGatewayId: !Ref IGW2
+            VpcId: !Ref VPC2
+
+#####################################
+### Connecting desired VGW to VPC ###
+#####################################
+
+    VGWAttachment1:
+        Type: AWS::EC2::VPCGatewayAttachment
+        Properties:
+            VpcId: !Ref VPC3
+            VpnGatewayId: !Ref VGW
+
+###############
+### Subnets ###
+###############
+
+# Private Subnets
+
+    PrivateSubnet1:
+        Type: AWS::EC2::Subnet
+        Properties:
+            VpcId: !Ref VPC3
+            AvailabilityZone: !Select [ 0, !GetAZs '' ]
+            CidrBlock: !Ref VPC3PRVSUBCIDR1
+            MapPublicIpOnLaunch: false
+            Tags:
+                - Key: Name
+                  Value: !Ref VPC3PRVSUBName1
+                - Key: Project
+                  Value: !Ref TAGProject
+                - Key: Role
+                  Value: !Ref TAGRole
+                - Key: Product
+                  Value: General Infra
+                - Key: Type
+                  Value: Networking
+
+    PrivateSubnet2:
+        Type: AWS::EC2::Subnet
+        Properties:
+            VpcId: !Ref VPC3
+            AvailabilityZone: !Select [ 1, !GetAZs '' ]
+            CidrBlock: !Ref VPC3PRVSUBCIDR2
+            MapPublicIpOnLaunch: false
+            Tags:
+                - Key: Name
+                  Value: !Ref VPC3PRVSUBName2
+                - Key: Project
+                  Value: !Ref TAGProject
+                - Key: Role
+                  Value: !Ref TAGRole
+                - Key: Product
+                  Value: General Infra
+                - Key: Type
+                  Value: Networking
+
+    PrivateSubnet3:
+        Type: AWS::EC2::Subnet
+        Properties:
+            VpcId: !Ref VPC3
+            AvailabilityZone: !Select [ 2, !GetAZs '' ]
+            CidrBlock: !Ref VPC3PRVSUBCIDR3
+            MapPublicIpOnLaunch: false
+            Tags:
+                - Key: Name
+                  Value: !Ref VPC3PRVSUBName3
+                - Key: Project
+                  Value: !Ref TAGProject
+                - Key: Role
+                  Value: !Ref TAGRole
+                - Key: Product
+                  Value: General Infra
+                - Key: Type
+                  Value: Networking
+
+# Public Subnets
+
+    Pub1Subnet1:
+        Type: AWS::EC2::Subnet
+        Properties:
+            VpcId: !Ref VPC1
+            AvailabilityZone: !Select [ 0, !GetAZs '' ]
+            CidrBlock: !Ref VPC1PUBSUBCIDR1
+            MapPublicIpOnLaunch: false
+            Tags:
+                - Key: Name
+                  Value: !Ref VPC1PUBSUBName1
+                - Key: Project
+                  Value: !Ref TAGProject
+                - Key: Role
+                  Value: !Ref TAGRole
+                - Key: Product
+                  Value: General Infra
+                - Key: Type
+                  Value: Networking
+
+    Pub1Subnet2:
+        Type: AWS::EC2::Subnet
+        Properties:
+            VpcId: !Ref VPC1
+            AvailabilityZone: !Select [ 1, !GetAZs '' ]
+            CidrBlock: !Ref VPC1PUBSUBCIDR2
+            MapPublicIpOnLaunch: false
+            Tags:
+                - Key: Name
+                  Value: !Ref VPC1PUBSUBName2
+                - Key: Project
+                  Value: !Ref TAGProject
+                - Key: Role
+                  Value: !Ref TAGRole
+                - Key: Product
+                  Value: General Infra
+                - Key: Type
+                  Value: Networking
+
+    Pub2Subnet1:
+        Type: AWS::EC2::Subnet
+        Properties:
+            VpcId: !Ref VPC2
+            AvailabilityZone: !Select [ 1, !GetAZs '' ]
+            CidrBlock: !Ref VPC2PUBSUBCIDR1
+            MapPublicIpOnLaunch: false
+            Tags:
+                - Key: Name
+                  Value: !Ref VPC2PUBSUBName1
+                - Key: Project
+                  Value: !Ref TAGProject
+                - Key: Role
+                  Value: !Ref TAGRole
+                - Key: Product
+                  Value: General Infra
+                - Key: Type
+                  Value: Networking
+
+    Pub2Subnet2:
+        Type: AWS::EC2::Subnet
+        Properties:
+            VpcId: !Ref VPC2
+            AvailabilityZone: !Select [ 2, !GetAZs '' ]
+            CidrBlock: !Ref VPC2PUBSUBCIDR2
+            MapPublicIpOnLaunch: false
+            Tags:
+                - Key: Name
+                  Value: !Ref VPC2PUBSUBName2
+                - Key: Project
+                  Value: !Ref TAGProject
+                - Key: Role
+                  Value: !Ref TAGRole
+                - Key: Product
+                  Value: General Infra
+                - Key: Type
+                  Value: Networking
+
+####################
+### Route Tables ###
+####################
+
+# Private Route Table with Outgoing VGW Traffic
+
+    PrivateRT:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            VpcId: !Ref VPC3
+            Tags:
+                - Key: Name
+                  Value: !Ref VPC3PrivateRTName
+                - Key: Project
+                  Value: !Ref TAGProject
+                - Key: Role
+                  Value: !Ref TAGRole
+                - Key: Product
+                  Value: General Infra
+                - Key: Type
+                  Value: Networking
+
+    NatPrvRoute1:
+        DependsOn: VGWAttachment1
+        Type: AWS::EC2::Route
+        Properties:
+            RouteTableId: !Ref PrivateRT
+            DestinationCidrBlock: 0.0.0.0/0
+            GatewayId: !Ref VPC3VGW
+
+# Public Route Table with Outgoing IGW Traffic
+
+    PublicRT1:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            VpcId: !Ref VPC1
+            Tags:
+                - Key: Name
+                  Value: !Ref VPC1PublicRTName
+                - Key: Project
+                  Value: !Ref TAGProject
+                - Key: Role
+                  Value: !Ref TAGRole
+                - Key: Product
+                  Value: General Infra
+                - Key: Type
+                  Value: Networking
+
+    IgwPub1Route:
+        Type: AWS::EC2::Route
+        Properties:
+            RouteTableId: !Ref PublicRT1
+            DestinationCidrBlock: 0.0.0.0/0
+            GatewayId: !Ref IGW1
+
+    PublicRT2:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            VpcId: !Ref VPC2
+            Tags:
+                - Key: Name
+                  Value: !Ref VPC2PublicRTName
+                - Key: Project
+                  Value: !Ref TAGProject
+                - Key: Role
+                  Value: !Ref TAGRole
+                - Key: Product
+                  Value: General Infra
+                - Key: Type
+                  Value: Networking
+
+    IgwPub2Route:
+        Type: AWS::EC2::Route
+        Properties:
+            RouteTableId: !Ref PublicRT2
+            DestinationCidrBlock: 0.0.0.0/0
+            GatewayId: !Ref IGW2
+
+###########################################
+### Enabling Route Propagation from VGW ###
+###########################################
+
+    MiCloudRouteProp:
+        DependsOn: 
+          - VGWAttachment1
+          - IGWAttachment1
+          - IGWAttachment2
+        Type: "AWS::EC2::VPNGatewayRoutePropagation"
+        Properties:
+            RouteTableIds: 
+              - !Ref PrivateRT
+              - !Ref PublicRT1
+              - !Ref PublicRT2
+            VpnGatewayId: !Ref VGW
+
+##########################################
+### Associating Subnets to Route Table ###
+##########################################
+
+# Private Subnets
+
+    PrvSubnet1ToPrvRT:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            SubnetId: !Ref PrivateSubnet1
+            RouteTableId: !Ref PrivateRT
+
+    PrvSubnet2ToPrvRT:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            SubnetId: !Ref PrivateSubnet2
+            RouteTableId: !Ref PrivateRT
+
+    PrvSubnet3ToPrvRT:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            SubnetId: !Ref PrivateSubnet3
+            RouteTableId: !Ref PrivateRT
+
+# Public Subnets
+
+    Pub1Subnet1ToVPC1RT:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            SubnetId: !Ref Pub1Subnet1
+            RouteTableId: !Ref PublicRT1
+
+    Pub1Subnet2ToVPC1RT:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            SubnetId: !Ref Pub1Subnet2
+            RouteTableId: !Ref PublicRT1
+
+    Pub2Subnet1ToVPC2RT:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            SubnetId: !Ref Pub2Subnet1
+            RouteTableId: !Ref PublicRT2
+
+    Pub2Subnet2ToVPC2RT:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            SubnetId: !Ref Pub2Subnet2
+            RouteTableId: !Ref PublicRT2
+
+Outputs:
+
+    VPC1:
+        Description: VPC1 ID
+        Value: !Ref VPC1
+
+    VPC2:
+        Description: VPC2 ID
+        Value: !Ref VPC2
+ 
+    VPC3:
+        Description: VPC3 ID
+        Value: !Ref VPC3

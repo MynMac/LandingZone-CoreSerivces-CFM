@@ -1,0 +1,101 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description:
+    This template sets up MiCloud VPN Connection in customer account.
+
+Parameters:
+
+    CGWName:
+      Type: "String"
+
+    VGWName:
+      Type: "String"
+
+    VPNConnectionName:
+      Type: "String"
+
+Resources:
+
+######################################
+### MiCloud Customer Gateway (CGW) ###
+######################################
+
+# Note: MiCloud UTM is currently being configured as a static VPN
+
+    CustomerGateway1:
+        Type: "AWS::EC2::CustomerGateway"
+        Properties:
+            Type: ipsec.1
+            IpAddress: 34.252.95.187   # MiCloud UTM IP
+            BgpAsn: 64000              # BPN 64000 Required with static routing
+            Tags:
+                - Key: Name
+                  Value: !Ref CGWName
+                - Key: Project
+                  Value: !Ref TAGProject
+                - Key: Role
+                  Value: !Ref TAGRole
+                - Key: Product
+                  Value: General Infra
+                - Key: Type
+                  Value: Networking
+
+#############################
+### Virtual Gateway (VGW) ###
+#############################
+
+    VGW1:
+        Type: "AWS::EC2::VPNGateway"
+        Properties:
+            Type: ipsec.1
+            Tags:
+                - Key: Name
+                  Value: !Ref VGWName
+                - Key: Project
+                  Value: !Ref TAGProject
+                - Key: Role
+                  Value: !Ref TAGRole
+                - Key: Product
+                  Value: General Infra
+                - Key: Type
+                  Value: Networking
+
+######################
+### VPN Connection ###
+######################
+
+    VPNConnection1:
+        Type: "AWS::EC2::VPNConnection"
+        Properties:
+            Type: ipsec.1
+            StaticRoutesOnly: true
+            CustomerGatewayId:
+                !Ref CustomerGateway1
+            VpnGatewayId:
+                !Ref VGW1
+            Tags:
+                - Key: Name
+                  Value: !Ref VPNConnectionName
+                - Key: Project
+                  Value: !Ref TAGProject
+                - Key: Role
+                  Value: !Ref TAGRole
+                - Key: Product
+                  Value: General Infra
+                - Key: Type
+                  Value: Networking
+
+# Static Route
+
+    MiCloudRoute1:
+        Type: "AWS::EC2::VPNConnectionRoute"
+        Properties:
+            DestinationCidrBlock: 10.185.0.0/16
+            VpnConnectionId:
+                !Ref VPNConnection1
+
+
+Outputs:
+
+    vgw:
+        Description: The ID of VGW1
+        Value: !Ref VGW1

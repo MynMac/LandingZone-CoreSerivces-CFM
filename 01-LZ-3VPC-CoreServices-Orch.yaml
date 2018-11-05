@@ -1,0 +1,380 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description:
+    This Orchestration template will create VPN connection for MiCloud VPN and
+    3 VPC's inside a customer's Core Services account. 1 VPC will be Private with a VGW
+    and 2 VPC's will be Public with an IGW, One for UTM VPN and the Other for UTM WAF.
+
+Parameters:
+
+# Template URLs
+
+    VPNStackURL:
+        Type: "String"
+        Description: VPN Stack template URL
+
+    VPCStackURL:
+        Type: "String"
+        Description: 3 VPC Stack template URL
+
+# CIDR Ranges
+
+    VPC1CIDR:
+      Description: VPC CIDR Range for UTM WAF
+      Type: String
+      MinLength: '9'
+      MaxLength: '18'
+      Default: 10.0.0.0/16
+      AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+      ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x.
+
+    VPC1PUBSUBCIDR1:
+      Description: Public Subnet CIDR Range in Availability Zone B
+      Type: String
+      MinLength: '9'
+      MaxLength: '18'
+      AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+      ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x.
+
+    VPC1PUBSUBCIDR2:
+      Description: Private Subnet CIDR Range in Availability Zone C
+      Type: String
+      MinLength: '9'
+      MaxLength: '18'
+      AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+      ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x.
+
+    VPC2CIDR:
+      Description: VPC CIDR Range for UTM VPN
+      Type: String
+      MinLength: '9'
+      MaxLength: '18'
+      Default: 10.0.0.0/16
+      AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+      ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x.
+
+    VPC2PUBSUBCIDR1:
+      Description: Management Subnet CIDR Range in Availability Zone A
+      Type: String
+      MinLength: '9'
+      MaxLength: '18'
+      AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+      ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x.
+
+    VPC2PUBSUBCIDR2:
+      Description: Management Subnet CIDR Range in Availability Zone B
+      Type: String
+      MinLength: '9'
+      MaxLength: '18'
+      AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+      ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x.
+
+    VPC3CIDR:
+      Description: VPC CIDR Range for Core Services Main
+      Type: String
+      MinLength: '9'
+      MaxLength: '18'
+      Default: 10.0.0.0/16
+      AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+      ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x.
+
+    VPC3PRVSUBCIDR1:
+      Description: Private Subnet CIDR Range in Availability Zone A
+      Type: String
+      MinLength: '9'
+      MaxLength: '18'
+      AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+      ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x.
+
+    VPC3PRVSUBCIDR2:
+      Description: Private Subnet CIDR Range in Availability Zone B
+      Type: String
+      MinLength: '9'
+      MaxLength: '18'
+      AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+      ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x.
+
+    VPC3PRVSUBCIDR3:
+      Description: Private Subnet CIDR Range in Availability Zone C
+      Type: String
+      MinLength: '9'
+      MaxLength: '18'
+      AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+      ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x.
+
+# MiCloud VPN Resource Name
+
+    CGWName:
+      Type: "String"
+      Description:  "Name of Customer Gateway (CGW) resource"
+      Default: "cgw-micloud"
+
+    VGWName:
+      Type: "String"
+      Description:  "Name of Virtual Gateway (VGW) resource"
+      Default: "vgw-"
+
+    VPNConnectionName:
+      Type: "String"
+      Description:  "Name of VPN connection"
+      Default: "vpn-"
+
+# Resource Names
+
+    VPC3Name:
+      Description: VPC Name for Core Services Main
+      Type: String
+      Default: 'vpc-'
+
+    VPC3PRVSUBName1:
+      Description: Private Subnet Name in Availability Zone A
+      Type: String
+      Default: 'sn-prv-1a'
+
+    VPC3PRVSUBName2:
+      Description: Private Subnet Name in Availability Zone B
+      Type: String
+      Default: 'sn-prv-1b'
+
+    VPC3PRVSUBName3:
+      Description: Private Subnet Name in Availability Zone C
+      Type: String
+      Default: 'sn-prv-1c'
+
+    VPC1Name:
+      Description: VPC Name for UTM WAF
+      Type: String
+      Default: 'vpc-'
+
+    VPC1PUBSUBName1:
+      Description: Public Subnet Name in Availability Zone B
+      Type: String
+      Default: 'sn-pub-1b'
+
+    VPC1PUBSUBName2:
+      Description: Public Subnet Name in Availability Zone C
+      Type: String
+      Default: 'sn-pub-1c'
+
+    VPC2Name:
+      Description: VPC Name for UTM VPN
+      Type: String
+      Default: 'vpc-'
+
+    VPC2PUBSUBName1:
+      Description: Management Subnet Name in Availability Zone A
+      Type: String
+      Default: 'sn-mgt-1a'
+
+    VPC2PUBSUBName2:
+      Description: Management Subnet Name in Availability Zone B
+      Type: String
+      Default: 'sn-mgt-1b'
+
+    VPC1IGWName:
+      Description: Internet Gateway (IGW) Name for UTM WAF
+      Type: String
+      Default: 'igw-'
+
+    VPC2IGWName:
+      Description: Internet Gateway (IGW) Name for UTM VPN
+      Type: String
+      Default: 'igw-'
+
+    VPC3PrivateRTName:
+      Description: Private Route Table name for Core Services Main
+      Type: String
+      Default: 'rt-prv-csv'
+
+    VPC1PublicRTName:
+      Description: Public Route Table name for UTM WAF
+      Type: String
+      Default: 'rt-pub-waf'
+
+    VPC2PublicRTName:
+      Description: Public Route Table name for UTM VPN
+      Type: String
+      Default: 'rt-pub-vpn'
+
+# Additional Tags
+
+    TAGProject:
+      Type: String
+      Description: Project Tag for Resources
+      Default: 'SAP to AWS'
+
+    TAGRole:
+      Type: String
+      Description: Role Tag for Resources
+      Default: 'Core Services'
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: Template URLs
+      Parameters:
+        - VPCStackURL
+        - VPNStackURL
+    - Label:
+        default: VPC & Subnet CIDR Info
+      Parameters:
+        - VPC1CIDR
+        - VPC1PUBSUBCIDR1
+        - VPC1PUBSUBCIDR2
+        - VPC2CIDR
+        - VPC2PUBSUBCIDR1
+        - VPC2PUBSUBCIDR2
+        - VPC3CIDR
+        - VPC3PRVSUBCIDR1
+        - VPC3PRVSUBCIDR2
+        - VPC3PRVSUBCIDR3
+        
+    - Label:
+        default: VPC Resource Names
+      Parameters:
+        - VPC1Name
+        - VPC1PUBSUBName1
+        - VPC1PUBSUBName2
+        - VPC1PublicRTName
+        - VPC1IGWName
+        - VPC2Name
+        - VPC2PUBSUBName1
+        - VPC2PUBSUBName2
+        - VPC2PublicRTName
+        - VPC2IGWName
+        - VPC3Name
+        - VPC3PRVSUBName1
+        - VPC3PRVSUBName2
+        - VPC3PRVSUBName3
+        - VPC3PrivateRTName
+    - Label:
+        default: VPN Resource Names
+      Parameters:
+        - CGWName
+        - VGWName
+        - VPNConnectionName
+
+    - Label:
+        Default: Additional Generic Tags
+      Parameters:
+        - TAGProject
+        - TAGRole
+
+    ParameterLabels:
+      VPCStackURL:
+        default: VPC template
+      VPNStackURL:
+        default: VPN template
+      VPC1CIDR:
+        default: VPC 1(WAF) CIDR
+      VPC1PUBSUBCIDR1:
+        default: WAF Public Subnet CIDR 1
+      VPC1PUBSUBCIDR2:
+        default: WAF Public Subnet CIDR 2
+      VPC2CIDR:
+        default: VPC 2(VPN) CIDR
+      VPC2PUBSUBCIDR1:
+        default: VPN Public Subnet CIDR 1
+      VPC2PUBSUBCIDR2:
+        default: VPN Public Subnet CIDR 2
+      VPC3CIDR:
+        default: VPC 3(CSV Main) CIDR
+      VPC3PRVSUBCIDR1:
+        default: CSV Priv Subnet CIDR 1
+      VPC3PRVSUBCIDR2:
+        default: CSV Priv Subnet CIDR 2
+      VPC3PRVSUBCIDR3:
+        default: CSV Priv Subnet CIDR 3
+      CGWName:
+        default: Customer Gateway (CGW) resource
+      VGWName:
+        default: Virtual Gateway (VGW) resource
+      VPNConnectionName:
+        default: VPN Connection
+      VPC3PRVSUBName1:
+        default: Private Subnet 1
+      VPC3PRVSUBName2:
+        default: Private Subnet 2
+      VPC3PRVSUBName3:
+        default: Private Subnet 3
+      VPC2PUBSUBName1:
+        default: VPN Public Subnet 1
+      VPC2PUBSUBName2:
+        default: VPN Public Subnet 2
+      VPC1PUBSUBName1:
+        default: WAF Public Subnet 1
+      VPC1PUBSUBName2:
+        default: WAF Public Subnet 2
+      VPC2IGWName:
+        default: Internet Gateway for UTM VPN
+      VPC1IGWName:
+        default: Internet Gateway for UTM WAF
+      VPC1Name:
+        default: UTM WAF VPC
+      VPC2Name:
+        default: UTM VPN VPC
+      VPC3Name:
+        default: CSV Main VPC
+      VPC3PrivateRTName:
+        default: CSV Main Priv Route Table
+      VPC2PublicRTName:
+        default: UTM VPN Public Route Table
+      VPC1PublicRTName:
+        default: UTM WAF Public Route Table
+      TAGProject:
+        default: Generic Project Tag
+      TAGRole:
+        default: Generic Role Tag
+
+Resources:
+
+### Phase 1 - Build VPN Connections ###
+
+    VPNStack:
+        Type: "AWS::CloudFormation::Stack"
+        Properties:
+            TemplateURL: !Ref VPNStackURL
+            Parameters:
+                CGWName: !Ref CGWName
+                VGWName: !Ref VGWName
+                VPNConnectionName: !Ref VPNConnectionName
+
+
+### Phase 2 - Build VPC Architecture ###
+
+
+    VPCStack1:
+        Type: "AWS::CloudFormation::Stack"
+        DependsOn: VPNStack
+        Properties:
+            TemplateURL: !Ref VPCStackURL
+            Parameters:
+                VPC1Name: !Ref VPC1Name
+                VPC1CIDR: !Ref VPC1CIDR
+                VPC1PUBSUBCIDR1: !Ref VPC1PUBSUBCIDR1
+                VPC1PUBSUBCIDR2: !Ref VPC1PUBSUBCIDR2
+                VPC1PUBSUBName1: !Ref VPC1PUBSUBName1
+                VPC1PUBSUBName2: !Ref VPC1PUBSUBName2
+                VPC1PublicRTName: !Ref VPC1PublicRTName
+                VPC1IGWName: !Ref VPC1IGWName
+                VPC2Name: !Ref VPC2Name
+                VPC2CIDR: !Ref VPC2CIDR
+                VPC2PUBSUBCIDR1: !Ref VPC2PUBSUBCIDR1
+                VPC2PUBSUBCIDR2: !Ref VPC2PUBSUBCIDR2
+                VPC2PUBSUBName1: !Ref VPC2PUBSUBName1
+                VPC2PUBSUBName2: !Ref VPC2PUBSUBName2
+                VPC2PublicRTName: !Ref VPC2PublicRTName
+                VPC2IGWName: !Ref VPC2IGWName
+                VPC3Name: !Ref VPC3Name
+                VPC3CIDR: !Ref VPC3CIDR
+                VPC3PRVSUBCIDR1: !Ref VPC3PRVSUBCIDR1
+                VPC3PRVSUBCIDR2: !Ref VPC3PRVSUBCIDR2
+                VPC3PRVSUBCIDR3: !Ref VPC3PRVSUBCIDR3
+                VPC3PRVSUBName1: !Ref VPC3PRVSUBName1
+                VPC3PRVSUBName2: !Ref VPC3PRVSUBName2
+                VPC3PRVSUBName3: !Ref VPC3PRVSUBName3
+                VPC3PrivateRTName: !Ref VPC3PrivateRTName
+                VGWName: !Ref VGWName
+                VGW: !GetAtt VPNStack.Outputs.vgw
+                TAGProject: !Ref TAGProject
+                TAGRole: !Ref TAGRole
